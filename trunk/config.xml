@@ -1,3 +1,24 @@
-<config>
+<general>
+  logfile = authserver.log
+  debug = 1
+</general>
 
-</config>
+<openvpn>
+  <instance1>
+    name = instance1
+    host = 127.0.0.1
+    port = 7505
+  </instance1>
+  <instance2>
+    name = instance2
+    host = 127.0.0.10
+    port = 7506
+  </instance1>
+</openvpn>
+
+<ldapconf>
+  <srv1>
+    hostname = 127.0.0.1
+  </srv1>
+</ldapconf>
+
