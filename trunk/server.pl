@@ -62,7 +62,6 @@ sub getOpts {
 
 ";
     }
-
 }
 
 sub connMgmt {
