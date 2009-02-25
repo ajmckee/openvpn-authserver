@@ -20,6 +20,7 @@ use strict;
 use warnings;
 
 use Config::General;
+use Date::Format; 
 
 my $config;
 my %config;
@@ -64,34 +65,51 @@ sub getOpts {
 
 }
 
-sub init {
+sub connMgmt {
 
-    use Net::Telnet;
+    use IO::Socket;
 
-    my $connection;
+    my $sock = new IO::Socket::INET (
+	PeerAddr => $_[1],
+	PeerPort => $_[2],
+	Proto    => 'tcp',
+	) or writeLog("Unable to connect to $_[0] [$$]: $!");
 
-    $connection = new Net::Telnet (
-	Host    => 'localhost',
-	Port    => 1234,
-	Timeout => 10
-	);
+    if($sock) {
+	# Do something
+    }
 }
 
-sub loopConfig;
-sub loopConfig (\%) {
+sub loopMgmt;
+sub loopMgmt (\%) {
     
     my $key;
     my $value;
 
     my(%hashdata) = %{(shift)};
     
-    while(($key, $value) = each(%hashdata))
-    {
+    while(($key, $value) = each(%hashdata)) {
 	if (ref($value) eq 'HASH') {
-	    print "<".$key.">\n";
-	    loopConfig($value);
-	} else {
-	    print $key." = ".$value."\n";
+	    next if my $pid = fork;
+	    writeLog("fork - $!") and die unless defined $pid;
+
+	    $| = 1;
+
+	    connMgmt($config{'instances'}{$key}{'name'},
+		     $config{'instances'}{$key}{'host'},
+		     $config{'instances'}{$key}{'port'},
+		);
+
+	    exit(fork);
 	}
     }
 }
+
+sub init {
+    unlink($config{'general'}{'logfile'});
+    writeLog("authserver: [$$]: Starting");
+    loopMgmt(%{($config{'instances'})});
+    writeLog("authserver: [$$]: Stopping");
+}
+
+init();
