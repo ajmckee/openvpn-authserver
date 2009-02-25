@@ -20,7 +20,6 @@ use strict;
 use warnings;
 
 use Config::General;
-use Date::Format; 
 
 my $config;
 my %config;
@@ -29,6 +28,9 @@ $config = new Config::General("config.xml");
 %config = $config->getall;
 
 sub writeLog {
+
+    use Date::Format;
+
     my $datestring = time2str("%a %b %d %H:%M:%S %Z %Y", time);
 
     open FILE, ">>".$config{'general'}{'logfile'} or die $!;
@@ -66,49 +68,54 @@ sub getOpts {
 
 sub connMgmt {
 
+    my(%hash) = %{(shift)};
+
     use IO::Socket;
 
     my $sock = new IO::Socket::INET (
-	PeerAddr => $_[1],
-	PeerPort => $_[2],
+	PeerAddr => $hash{'host'},
+	PeerPort => $hash{'port'},
 	Proto    => 'tcp',
-	) or writeLog("Unable to connect to $_[0] [$$]: $!");
+	) or writeLog("Unable to connect to $hash{'name'} [$$]: $!");
 
     if($sock) {
 	# Do something
     }
 }
 
-sub loopMgmt;
-sub loopMgmt (\%) {
-    
+sub instanceInit (\%)  {
     my $key;
-    my $value;
+    my(%hash) = %{(shift)};
 
-    my(%hashdata) = %{(shift)};
-    
-    while(($key, $value) = each(%hashdata)) {
-	if (ref($value) eq 'HASH') {
-	    next if my $pid = fork;
-	    writeLog("fork - $!") and die unless defined $pid;
-
-	    $| = 1;
-
-	    connMgmt($config{'instances'}{$key}{'name'},
-		     $config{'instances'}{$key}{'host'},
-		     $config{'instances'}{$key}{'port'},
-		);
-
-	    exit(fork);
+    for my $key ( keys %hash ) {
+	if (!defined($hash{$key}{'host'}) ||
+	    !defined($hash{$key}{'name'}) ||
+	    !defined($hash{$key}{'port'})
+	    ) {
+	    writeLog("WARNING: Your instance configuration is incomplete");
+	    termDaemon();
 	}
+
+	next if my $pid = fork;
+	writeLog("fork failed to initiate - $!") and die unless defined $pid;
+
+	$! = 1;
+
+	connMgmt($hash{$key});
+	exit(fork);
     }
+
+}
+
+sub termDaemon {
+    writeLog("authserver: [$$]: Stopping");
+    exit 0;
 }
 
 sub init {
     unlink($config{'general'}{'logfile'});
     writeLog("authserver: [$$]: Starting");
-    loopMgmt(%{($config{'instances'})});
-    writeLog("authserver: [$$]: Stopping");
+    instanceInit(%{$config{'instances'}});
 }
 
 init();
