@@ -1,0 +1,1 @@
+The intention of openvpn-authserver is to create an open framework providing OpenVPN users with a standardized way to manage client-authentication.
